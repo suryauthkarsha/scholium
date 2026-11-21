@@ -165,10 +165,10 @@ export function AuthCallback() {
       setProblem(params.get("error_description") ?? params.get("error") ?? "Google did not return a sign-in code.");
       return;
     }
-    // Rork sign-in only returns to the Rork-hosted site. When the attempt was started on the one other site named at
-    // build time (VITE_SIGNIN_RELAY_ORIGIN), this browser holds no verifier for it here, so the code is handed on to
+    // Rork sign-in only returns to the Rork-hosted site. When the attempt was started on the one other site named here
+    // (the Vercel copy; VITE_SIGNIN_RELAY_ORIGIN overrides it at build time), this browser holds no verifier for it here, so the code is handed on to
     // that site, which holds the verifier. The code is useless to anyone without it.
-    const relay = ((import.meta.env.VITE_SIGNIN_RELAY_ORIGIN as string | undefined) ?? "").trim().replace(/\/+$/, "");
+    const relay = ((import.meta.env.VITE_SIGNIN_RELAY_ORIGIN as string | undefined) ?? "https://scholium-math.vercel.app").trim().replace(/\/+$/, "");
     if (!localStorage.getItem("rork:pkce_verifier") && /^https:\/\/[^/]+$/.test(relay) && relay !== window.location.origin) {
       window.location.replace(`${relay}/auth/callback?code=${encodeURIComponent(code)}`);
       return;
