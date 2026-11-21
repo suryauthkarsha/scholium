@@ -1,11 +1,14 @@
 // Renders model-written and platform-written text: Markdown with real mathematics, and ledger references such as
 // [[C3]] as chips that open the item. Raw HTML is never rendered and remote images are never fetched, because
 // everything a model or a retrieved page wrote is untrusted.
+import katex from "katex";
 import { createContext, memo, useContext, useMemo, type ReactNode } from "react";
 import ReactMarkdown, { type Components, type Options } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
+
+import { mathSegments, normalizeMath } from "@/shared/math";
 
 export interface RefLookup {
   open: (id: string) => void;
@@ -77,18 +80,40 @@ function linkRefs(node: MdNode): void {
 
 const remarkRefs = () => (tree: MdNode): void => linkRefs(tree);
 
-/** Models often write \( … \) and \[ … \]; the Markdown reader only knows dollar signs. Code is left alone. */
-export function normalizeMath(src: string): string {
-  if (!src.includes("\\(") && !src.includes("\\[")) return src;
-  return src
-    .split(/(```[\s\S]*?(?:```|$)|`[^`\n]*`)/g)
-    .map((part, i) =>
-      i % 2
-        ? part
-        : part.replace(/(?<!\\)\\\[([\s\S]+?)(?<!\\)\\\]/g, (_m, body: string) => `\n$$\n${body.trim()}\n$$\n`).replace(/(?<!\\)\\\(([\s\S]+?)(?<!\\)\\\)/g, (_m, body: string) => `$${body.trim()}$`),
-    )
-    .join("");
+const KATEX = { throwOnError: false, strict: false, errorColor: "currentColor" } as const;
+const rendered = new Map<string, string>();
+
+function formula(tex: string): string {
+  let html = rendered.get(tex);
+  if (html === undefined) {
+    try {
+      html = katex.renderToString(tex, KATEX);
+    } catch {
+      html = "";
+    }
+    if (rendered.size > 3000) rendered.clear();
+    rendered.set(tex, html);
+  }
+  return html;
 }
+
+/**
+ * A plain line of text with its formulas typeset: titles, one-line summaries, text still being written. Unlike
+ * Markdown it adds no paragraphs or formatting, so it fits inside buttons, table cells and truncated lines.
+ */
+export const MathText = memo(function MathText({ text }: { text: string | undefined | null }) {
+  const parts = useMemo(() => mathSegments(text ?? ""), [text]);
+  if (parts.length === 1 && !parts[0].math) return <>{parts[0].text}</>;
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (!p.math) return <span key={i}>{p.text}</span>;
+        const html = formula(p.text);
+        return html ? <span key={i} dangerouslySetInnerHTML={{ __html: html }} /> : <span key={i}>{`$${p.text}$`}</span>;
+      })}
+    </>
+  );
+});
 
 const ID = /^(?:[ACEIKLMNOQRSTUVX]\d+|(?:lead|sub)-[\w-]+)$/;
 
@@ -131,7 +156,7 @@ const COMPONENTS: Components = {
 };
 
 const REMARK: Options["remarkPlugins"] = [[remarkGfm, { singleTilde: false }], remarkMath, remarkRefs];
-const REHYPE: Options["rehypePlugins"] = [[rehypeKatex, { throwOnError: false, strict: false, errorColor: "currentColor" }]];
+const REHYPE: Options["rehypePlugins"] = [[rehypeKatex, KATEX]];
 
 export const Markdown = memo(function Markdown({ text, compact = false, className = "" }: { text: string; compact?: boolean; className?: string }) {
   const src = useMemo(() => normalizeMath(text ?? ""), [text]);

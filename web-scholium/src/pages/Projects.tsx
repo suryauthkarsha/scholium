@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Empty, ErrorNote, Loading, Meter, ModelTag, Section, StatusBadge, timeAgo, usd } from "@/components/bits";
+import { MathText } from "@/components/Markdown";
 import { Page, useWorkspace } from "@/components/Shell";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { api, errorText } from "@/lib/api";
@@ -27,7 +28,7 @@ function Row({ run, onDelete }: { run: RunSummary; onDelete: (r: RunSummary) => 
     <li className="hairline group relative border-b">
       <Link to={`/r/${run.id}`} className="block py-4 pr-10 transition-colors hover:bg-accent/40 sm:px-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h3 className="min-w-0 max-w-full truncate text-[1.32rem] font-normal leading-tight">{run.title || "Untitled project"}</h3>
+          <h3 className="min-w-0 max-w-full truncate text-[1.32rem] font-normal leading-tight"><MathText text={run.title || "Untitled project"} /></h3>
           <StatusBadge status={run.status} />
           {run.goalReached && (
             <span className="chip border-ok/35 bg-ok-soft text-ok">
@@ -40,7 +41,7 @@ function Row({ run, onDelete }: { run: RunSummary; onDelete: (r: RunSummary) => 
             </span>
           )}
         </div>
-        {run.goal && <p className="mt-1 line-clamp-2 max-w-3xl font-serif text-[1.02rem] leading-snug text-muted-foreground">{run.goal}</p>}
+        {run.goal && <p className="mt-1 line-clamp-2 max-w-3xl font-serif text-[1.02rem] leading-snug text-muted-foreground"><MathText text={run.goal} /></p>}
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8rem] text-muted-foreground">
           <span className="flex items-center gap-3 text-foreground">
             {run.leads.map((m) => (

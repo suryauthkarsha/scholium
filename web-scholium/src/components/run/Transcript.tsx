@@ -3,7 +3,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { ErrorNote, Loading } from "@/components/bits";
-import { Code, Markdown } from "@/components/Markdown";
+import { Code, Markdown, MathText } from "@/components/Markdown";
+import { tailText } from "@/shared/math";
 import { api } from "@/lib/api";
 import type { Msg } from "@/shared/types";
 
@@ -14,7 +15,7 @@ function Fold({ text }: { text: string }) {
   const long = text.length > 700;
   return (
     <>
-      <p className="whitespace-pre-wrap break-words text-sm">{long && !all ? `${text.slice(0, 600)}…` : text}</p>
+      <p className="whitespace-pre-wrap break-words text-sm"><MathText text={long && !all ? `${text.slice(0, 600)}…` : text} /></p>
       {long ? (
         <button type="button" onClick={() => setAll((v) => !v)} className="mt-1 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
           {all ? "Show less" : `Show all ${text.length.toLocaleString()} characters`}
@@ -43,7 +44,7 @@ function Turn({ m }: { m: Msg }) {
         {m.thinking ? (
           <details className="mb-2">
             <summary className="cursor-pointer text-xs text-muted-foreground">Reasoning summary, as the provider reported it</summary>
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm italic text-muted-foreground">{m.thinking}</p>
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm italic text-muted-foreground"><MathText text={m.thinking} /></p>
           </details>
         ) : null}
         {m.text ? <Markdown text={m.text} compact /> : null}
@@ -94,7 +95,7 @@ export function Transcript({ taskId }: { taskId: string }) {
           <p className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="live-dot" /> {stream?.text ? "writing now" : "reasoning now"} — not yet saved
           </p>
-          <p className="whitespace-pre-wrap break-words font-serif text-[0.93rem] leading-relaxed">{live.slice(-4000)}</p>
+          <p className="whitespace-pre-wrap break-words font-serif text-[0.93rem] leading-relaxed"><MathText text={tailText(live, 4000)} /></p>
         </div>
       ) : null}
     </div>

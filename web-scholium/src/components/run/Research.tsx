@@ -2,7 +2,8 @@
 import { useMemo, useState } from "react";
 
 import { Chip, Empty, LabelChip, ModelTag, Section, modelColor, timeAgo } from "@/components/bits";
-import { Markdown, Ref } from "@/components/Markdown";
+import { Markdown, MathText, Ref } from "@/components/Markdown";
+import { tailText } from "@/shared/math";
 import { Input } from "@/components/ui/input";
 import { goalSummary, labelCounts, standingObjections } from "@/engine/report";
 import { LABELS, LABEL_NAMES, PHASE_NAMES, labelRank, type Agent, type Claim, type Note } from "@/shared/types";
@@ -32,7 +33,7 @@ function LeadCard({ a }: { a: Agent }) {
       {task ? (
         <button type="button" onClick={() => open(task.id)} className="mt-2 block text-left text-sm hover:underline">
           <span className="eyebrow mr-2">{task.status === "waiting" ? "waiting on subagents" : "working on"}</span>
-          {task.title}
+          <MathText text={task.title} />
         </button>
       ) : (
         <p className="mt-2 text-sm text-muted-foreground">{a.lastActivity ?? "Nothing in progress."}</p>
@@ -44,7 +45,7 @@ function LeadCard({ a }: { a: Agent }) {
             <span className="live-dot" /> {writing ? "writing now" : "reasoning now"}
           </p>
           <div className="flex max-h-36 flex-col-reverse overflow-hidden">
-            <p className={`whitespace-pre-wrap break-words font-serif text-[0.93rem] leading-relaxed ${writing ? "" : "italic text-muted-foreground"}`}>{live.slice(-1200)}</p>
+            <p className={`whitespace-pre-wrap break-words font-serif text-[0.93rem] leading-relaxed ${writing ? "" : "italic text-muted-foreground"}`}><MathText text={tailText(live, 1200)} /></p>
           </div>
         </div>
       ) : null}

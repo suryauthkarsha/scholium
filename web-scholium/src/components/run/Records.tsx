@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Chip, ErrorNote, Loading, Section, clock, timeAgo, usd } from "@/components/bits";
-import { Ref } from "@/components/Markdown";
+import { MathText, Ref } from "@/components/Markdown";
 import { fmtDuration } from "@/engine/util";
 import { api, errorText, saveText } from "@/lib/api";
 import { fileSize } from "@/lib/files";
@@ -110,7 +110,7 @@ export function Files() {
                   </>
                 }
               >
-                {a.title}
+                <MathText text={a.title} />
               </Row>
             ))}
           </ul>
@@ -299,7 +299,7 @@ export function Checkpoints() {
             }
           >
             {k.reason}
-            {k.summary ? <span className="mt-0.5 block text-muted-foreground">{brief(k.summary, 320)}</span> : null}
+            {k.summary ? <span className="mt-0.5 block text-muted-foreground"><MathText text={brief(k.summary, 320)} /></span> : null}
           </Row>
         ))}
       </ul>

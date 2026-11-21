@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Chip, ErrorNote, Loading, usd } from "@/components/bits";
+import { MathText } from "@/components/Markdown";
 import { Field } from "@/components/ConfigForm";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -101,7 +102,7 @@ export default function Methods() {
                   {AREAS.find((a) => a.value === v.area)?.label} · by {v.proposedBy} · {new Date(v.at).toLocaleString()}
                 </span>
               </div>
-              {v.text && <p className="mt-2 whitespace-pre-wrap break-words font-serif text-[0.98rem] leading-relaxed">{v.text}</p>}
+              {v.text && <p className="mt-2 whitespace-pre-wrap break-words font-serif text-[0.98rem] leading-relaxed"><MathText text={v.text} /></p>}
               {v.reason && <p className="mt-1.5 text-sm text-muted-foreground">Why: {v.reason}</p>}
               {!v.lint.ok && <p className="gloss mt-2 text-sm">Blocked by the fixed rules. {v.lint.problems.join(" ")}</p>}
               {e && (

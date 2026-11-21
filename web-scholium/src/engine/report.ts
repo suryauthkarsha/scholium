@@ -1,4 +1,5 @@
 // Deterministic reports, exports and email digests built from the ledger. Runs in the Worker and in the browser.
+import { normalizeMath } from "../shared/math";
 import { MODELS } from "../shared/models";
 import {
   ENTITY_KINDS,
@@ -367,7 +368,8 @@ function texInline(s: string): string {
 }
 
 export function toLatex(md: string, title = "Scholium report"): string {
-  const lines = md.replace(/\r/g, "").split("\n");
+  // The same reading of formulas as on screen: \( … \), \[ … \], one-line $$ … $$ and bare environments all work.
+  const lines = normalizeMath(md.replace(/\r/g, "")).split("\n");
   const body: string[] = [];
   let list: "itemize" | "enumerate" | null = null;
   let quote = false;
@@ -392,7 +394,9 @@ export function toLatex(md: string, title = "Scholium report"): string {
       close();
       const math: string[] = [line.trim().replace(/^\$\$/, "")];
       while (!/\$\$\s*$/.test(math[math.length - 1]) && i + 1 < lines.length) math.push(lines[++i]);
-      body.push(`\\[${math.join("\n").replace(/\$\$\s*$/, "")}\\]`);
+      const tex = math.join("\n").replace(/\$\$\s*$/, "").trim();
+      // align, gather and equation are displays by themselves; LaTeX rejects them inside \[ … \].
+      body.push(/^\\begin\{(align|alignat|gather|multline|equation)\*?\}/.test(tex) ? tex : `\\[${tex}\\]`);
       continue;
     }
     const h = /^(#{1,6})\s+(.*)$/.exec(line);

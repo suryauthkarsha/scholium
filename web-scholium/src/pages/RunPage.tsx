@@ -6,7 +6,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner";
 
 import { Chip, Loading, Meter, StatusBadge, usd } from "@/components/bits";
-import { Ref, RefProvider, type RefLookup } from "@/components/Markdown";
+import { MathText, Ref, RefProvider, type RefLookup } from "@/components/Markdown";
 import Agents from "@/components/run/Agents";
 import { Activity, Composer } from "@/components/run/Composer";
 import { describe, RunProvider, useRunCtx, type RunCtx } from "@/components/run/ctx";
@@ -123,7 +123,7 @@ function Head({ onSetup }: { onSetup: () => void }) {
             <LinkState />
           </div>
           <h1 className="mt-1 truncate font-serif text-[1.45rem] leading-tight" title={title}>
-            {title}
+            <MathText text={title} />
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">

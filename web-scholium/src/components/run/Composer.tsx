@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { clock, modelColor, timeAgo } from "@/components/bits";
 import { FileDrop } from "@/components/FileDrop";
-import { Ref } from "@/components/Markdown";
+import { MathText, Ref } from "@/components/Markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { api, errorText } from "@/lib/api";
 import { sendFiles } from "@/lib/files";
@@ -49,7 +49,7 @@ export function Activity() {
               <span className={`mt-[0.4rem] h-1.5 w-1.5 shrink-0 rounded-full ${DOT[e.level]}`} />
               <span className={`min-w-0 break-words ${e.level === "error" ? "text-destructive" : ""}`}>
                 {e.agentId ? <Who id={e.agentId} className="mr-1.5 text-[0.78rem] font-medium" /> : null}
-                {e.text} {e.ref ? <Ref id={e.ref} /> : null}
+                <MathText text={e.text} /> {e.ref ? <Ref id={e.ref} /> : null}
               </span>
             </div>
           ))
@@ -160,7 +160,7 @@ export function Composer() {
               ) : (
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="whitespace-pre-wrap break-words">{i.text}</p>
+                    <p className="whitespace-pre-wrap break-words"><MathText text={i.text} /></p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       to {name(i.target)} · {timeAgo(i.createdAt)}
                       {i.editedAt ? " · edited" : ""}
@@ -187,7 +187,7 @@ export function Composer() {
           {sent
             ? delivered.map((i) => (
                 <div key={i.id} className="mt-1.5 border-l-2 pl-2 text-sm text-muted-foreground">
-                  <p className="whitespace-pre-wrap break-words">{i.text}</p>
+                  <p className="whitespace-pre-wrap break-words"><MathText text={i.text} /></p>
                   <p className="mt-0.5 text-xs">
                     {i.deliveries.length ? i.deliveries.map((d) => `${name(d.agentId)} at ${clock(d.at)}`).join(" · ") : "delivered"}
                   </p>

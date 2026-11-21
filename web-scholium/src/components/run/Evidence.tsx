@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 
 import { Chip, Empty, LabelChip, ModelTag, Section, timeAgo, usd } from "@/components/bits";
-import { Ref } from "@/components/Markdown";
+import { MathText, Ref } from "@/components/Markdown";
 import { labelCounts, standingObjections } from "@/engine/report";
 import { fmtDuration } from "@/engine/util";
 import { LABELS, LABEL_NAMES } from "@/shared/types";
@@ -71,7 +71,7 @@ function Matrix() {
                 <td className="max-w-[22rem] px-2 py-2 align-top">
                   <Ref id={r.c.id} />{" "}
                   <button type="button" onClick={() => open(r.c.id)} className="text-left hover:underline">
-                    {brief(r.c.statement, 110)}
+                    <MathText text={brief(r.c.statement, 110)} />
                   </button>
                   {r.c.status !== "active" ? <span className="ml-1 text-xs text-destructive">{r.c.status}</span> : null}
                   {r.c.stale ? <span className="ml-1 text-xs text-warn">out of date</span> : null}
@@ -134,7 +134,7 @@ function Sources() {
                 </>
               }
             >
-              {url ? <Ext href={url}>{s.title || url}</Ext> : s.title}
+              {url ? <Ext href={url}><MathText text={s.title || url} /></Ext> : <MathText text={s.title} />}
               {s.authors.length || s.venue || s.date ? (
                 <span className="block text-muted-foreground">{[s.authors.slice(0, 4).join(", ") + (s.authors.length > 4 ? " et al." : ""), s.venue, s.date].filter(Boolean).join(" · ")}</span>
               ) : null}
@@ -329,7 +329,7 @@ function Reviews() {
                   </>
                 }
               >
-                {brief(r.summary, 420)}
+                <MathText text={brief(r.summary, 420)} />
               </Row>
             ))}
           </ul>

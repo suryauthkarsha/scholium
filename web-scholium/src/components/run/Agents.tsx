@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { MODELS } from "@/shared/models";
 import { SUBAGENT_HARD_CAP, type Agent, type AgentStatus } from "@/shared/types";
 
+import { MathText } from "@/components/Markdown";
+
 import { brief, useRunCtx } from "./ctx";
 
 const DX = 34;
@@ -273,7 +275,7 @@ export default function Agents() {
                       {usd(a.costUsd)} · {a.turns} {a.turns === 1 ? "turn" : "turns"}
                     </span>
                   </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">{brief(a.assignment?.question ?? a.role, 220)}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground"><MathText text={brief(a.assignment?.question ?? a.role, 220)} /></span>
                   {a.error ? <span className="mt-0.5 block text-xs text-destructive">{brief(a.error, 220)}</span> : null}
                 </button>
               </li>

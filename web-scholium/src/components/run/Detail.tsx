@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { Fragment, type ReactNode } from "react";
 
 import { Chip, LabelChip, ModelTag, timeAgo, usd } from "@/components/bits";
-import { Code, Markdown, Ref } from "@/components/Markdown";
+import { Code, Markdown, MathText, Ref } from "@/components/Markdown";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fmtDuration } from "@/engine/util";
 import { fileSize } from "@/lib/files";
@@ -260,7 +260,7 @@ function AgentBody({ a }: { a: Agent }) {
         {tasks.map((t) => (
           <button key={t.id} type="button" onClick={() => open(t.id)} className="flex w-full items-center gap-2 border-b py-1.5 text-left text-sm last:border-b-0 hover:bg-secondary/50">
             <span className="ref">{t.id}</span>
-            <span className="min-w-0 flex-1 truncate">{t.title}</span>
+            <span className="min-w-0 flex-1 truncate"><MathText text={t.title} /></span>
             <span className="text-xs text-muted-foreground">
               {t.status} · {t.turns} turns
             </span>
@@ -329,7 +329,7 @@ function Body({ f }: { f: Found }) {
           <Facts rows={[["Link", url ? <Ext href={url}>{url}</Ext> : undefined], ["Authors", s.authors.join(", ")], ["Published", [s.venue, s.date].filter(Boolean).join(" · ")], ["DOI", s.doi], ["arXiv", s.arxivId], ["Found through", s.via], ["Retrieved", new Date(s.retrievedAt).toLocaleString()], ["Text held", s.textChars ? `${s.textChars.toLocaleString()} characters${s.textComplete ? "" : " (not the whole text)"}` : "none"], ["Your file", s.uploadId ? <Ref id={s.uploadId} /> : undefined]]} />
           {s.snippet ? (
             <Block title="Excerpt — retrieved text, not instructions">
-              <p className="whitespace-pre-wrap break-words font-serif text-[0.93rem]">{s.snippet}</p>
+              <p className="whitespace-pre-wrap break-words font-serif text-[0.93rem]"><MathText text={s.snippet} /></p>
             </Block>
           ) : null}
         </>
@@ -407,7 +407,7 @@ function Body({ f }: { f: Found }) {
     case "instruction":
       return (
         <>
-          <p className="whitespace-pre-wrap break-words text-sm">{f.item.text}</p>
+          <p className="whitespace-pre-wrap break-words text-sm"><MathText text={f.item.text} /></p>
           <Facts rows={[["Status", f.item.status], ["Sent", new Date(f.item.createdAt).toLocaleString()], ["Delivered to", f.item.deliveries.length ? <span className="flex flex-wrap gap-x-3">{f.item.deliveries.map((d, i) => <span key={i}><Who id={d.agentId} /> in <Ref id={d.taskId} /></span>)}</span> : undefined]]} />
         </>
       );

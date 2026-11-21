@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { Meter, STATUS, usd } from "@/components/bits";
+import { MathText } from "@/components/Markdown";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
@@ -29,7 +30,7 @@ function RunLink({ run, onNavigate }: { run: RunSummary; onNavigate?: () => void
         <>
           {isActive && <span className="absolute inset-y-1.5 left-0 w-[2px] bg-rubric" />}
           <span className={`absolute left-2 top-[0.95rem] h-2 w-2 rounded-full ${run.status === "running" ? "live-dot" : DOT[s.tone]}`} title={s.label} />
-          <span className="block truncate font-serif text-[1.02rem] leading-tight">{run.title || run.goal || "Untitled project"}</span>
+          <span className="block truncate font-serif text-[1.02rem] leading-tight"><MathText text={run.title || run.goal || "Untitled project"} /></span>
           <span className="mt-0.5 block truncate text-[0.74rem] text-muted-foreground">
             {s.label} · {PHASE_NAMES[run.phase] ?? run.phase}
             {run.cycle > 1 ? ` · cycle ${run.cycle}` : ""} · {usd(run.spendUsd)}
