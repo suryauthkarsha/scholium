@@ -222,7 +222,12 @@ async function route(req: Request, url: URL, env: RouterEnv, deps: RouterDeps): 
   if (access === "public") {
     // Google's redirect. The state must be one this server signed; the workspace then checks it was issued and unused.
     const st = await verifyDriveState(secret, url.searchParams.get("state") ?? "", deps.now());
-    if (!st.ok) return page("Google Drive was not connected", "This link is not valid or has expired. Start again from Settings in Scholium.", 400);
+    if (!st.ok) {
+      // Only a state this server signed is told that it lapsed; anything else gets no detail.
+      console.log("drive callback refused at the door:", st.reason);
+      const why = st.reason === "expired" ? "More than ten minutes passed between pressing Connect and approving, so this attempt lapsed." : "This link was not issued by this workspace.";
+      return page("Google Drive was not connected", `${why} Nothing was changed. Start again from Settings in Scholium.`, 400);
+    }
     const ownerHash = await ownerHashFor(ALLOWED_EMAIL);
     const res = await env.WORKSPACE.getByName(`ws:${ownerHash}`).fetch(`${INTERNAL}/internal/drive/callback`, {
       method: "POST",

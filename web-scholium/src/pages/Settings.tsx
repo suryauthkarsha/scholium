@@ -1,7 +1,7 @@
 // Workspace settings: the spending ceiling, the outside services, connection checks, method notes and the session.
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, ExternalLink, Loader2, LogOut, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Chip, ErrorNote, Loading, Meter, ModelTag, Section, timeAgo, usd } from "@/components/bits";
@@ -157,6 +157,19 @@ function Connections({ s, refresh }: { s: PublicSettings; refresh: () => void })
       refresh();
     }
   };
+  // Google's approval happens in another tab, on the backend's own address, which cannot report back to this page.
+  // So while an attempt is open this page asks the server every few seconds whether Drive is connected yet.
+  const [waitUntil, setWaitUntil] = useState(0);
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  useEffect(() => {
+    if (!waitUntil || s.drive.connected) return;
+    const every = window.setInterval(() => {
+      if (Date.now() > waitUntil) setWaitUntil(0);
+      else refreshRef.current();
+    }, 4000);
+    return () => window.clearInterval(every);
+  }, [waitUntil, s.drive.connected]);
   const copy = (): void => void navigator.clipboard.writeText(s.drive.redirectUri).then(() => toast.success("Copied"), () => toast.error("Could not copy. Select the address and copy it by hand."));
   return (
     <>
@@ -211,6 +224,7 @@ function Connections({ s, refresh }: { s: PublicSettings; refresh: () => void })
                 void wrap("drive", async () => {
                   const { url } = await api.driveStart();
                   // Google does not show its consent screen inside a frame, so it opens in its own tab.
+                  setWaitUntil(Date.now() + 10 * 60_000);
                   if (!window.open(url, "_blank")) window.location.assign(url);
                 })
               }

@@ -6,6 +6,7 @@ import { createServices, type Services } from "../src/engine/services";
 import { b64decode, b64encode, clip, errText, fmtUsd, oneLine } from "../src/engine/util";
 import * as B from "../src/shared/budget";
 import { ALLOWED_EMAIL, emailAllowed, ownerHashFor } from "../src/shared/gate";
+import { issue, readLinks, redeem, settle, type DriveLinks } from "../src/shared/driveLink";
 import { costOf, MODEL_KEYS, MODELS, type ModelKey, worstCaseCost } from "../src/shared/models";
 import type { DiagnosticResult, PublicSettings, RunSummary, WorkspaceOverview } from "../src/shared/types";
 import { type Env, fail, fromInside, json, notFound, readBody, rec } from "./env";
@@ -31,7 +32,9 @@ interface DriveState {
   refresh?: string;
   email?: string;
   rootId?: string;
+  /** The older single-attempt record; read once and then dropped. */
   pending?: { nonce: string; redirectUri: string; at: number };
+  links?: DriveLinks;
 }
 interface State {
   settings: Settings;
@@ -408,13 +411,26 @@ export class Workspace extends DurableObject<Env> {
     return { token: this.mem.token };
   }
 
+  /** Marks the attempt lists that were validated after being read from storage. */
+  private linksChecked = new WeakSet<DriveLinks>();
+
+  /** The open connection attempts, carrying over the older stored shape the first time it is read. */
+  private driveLinks(): DriveLinks {
+    const d = this.s.drive;
+    if (!d.links || !this.linksChecked.has(d.links)) d.links = readLinks(d.links, d.pending);
+    this.linksChecked.add(d.links);
+    d.pending = undefined;
+    return d.links;
+  }
+
   private driveStart(b: Record<string, unknown>): Response {
     const g = this.google();
     if (!g) return fail(409, "not_configured", "Google Drive needs a Google client ID and secret before it can be connected.");
     const nonce = String(b.nonce ?? "");
     const redirectUri = String(b.redirectUri ?? "");
     if (!nonce || !/^https:\/\/[^\s]+\/api\/drive\/callback$/.test(redirectUri)) return fail(400, "bad_request", "The connection could not be started.");
-    this.s.drive.pending = { nonce, redirectUri, at: Date.now() };
+    const links = this.driveLinks();
+    issue(links, nonce, redirectUri, Date.now());
     this.save("drive", true);
     const p = new URLSearchParams({ client_id: g.id, redirect_uri: redirectUri, response_type: "code", scope: `${DRIVE_SCOPE} openid email`, access_type: "offline", prompt: "consent select_account", include_granted_scopes: "false", login_hint: ALLOWED_EMAIL, state: String(b.state ?? "") });
     return json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${p.toString()}` });
@@ -422,11 +438,31 @@ export class Workspace extends DurableObject<Env> {
 
   private async driveCallback(b: Record<string, unknown>): Promise<Response> {
     const g = this.google();
-    const p = this.s.drive.pending;
-    this.s.drive.pending = undefined;
+    const nonce = String(b.nonce ?? "");
+    // The attempt is used up before anything else happens, so the same redirect can never be exchanged twice.
+    const p = redeem(this.driveLinks(), nonce, Date.now());
     this.save("drive", true);
-    const bad = (message: string): Response => json({ ok: false, message }, 400);
-    if (!g || !p || p.nonce !== String(b.nonce ?? "") || Date.now() - p.at > 600_000) return bad("This link is not valid or has expired. Start again from Settings in Scholium.");
+    if (p.kind === "repeat") {
+      // The same redirect loaded again. Say what the first load did; exchange nothing.
+      const stillTrue = !p.ok || !!this.s.drive.refresh;
+      console.log("drive callback: repeat of a settled attempt", p.ok ? "ok" : "failed");
+      return stillTrue ? json({ ok: p.ok, message: p.message }, p.ok ? 200 : 400) : json({ ok: false, message: "Google Drive is no longer connected. Start again from Settings in Scholium." }, 400);
+    }
+    if (p.kind !== "fresh" || !g) {
+      console.log("drive callback refused:", !g ? "not_configured" : p.kind);
+      const why = !g
+        ? "Google Drive is not configured on this server."
+        : p.kind === "expired"
+          ? "More than ten minutes passed between pressing Connect and approving, so this attempt lapsed."
+          : "This connection attempt is not open on this workspace: it was already used, or it was not started here.";
+      return json({ ok: false, message: `${why} Nothing was changed. Start again from Settings in Scholium.` }, 400);
+    }
+    const bad = (message: string): Response => {
+      settle(this.driveLinks(), nonce, false, message, Date.now());
+      this.save("drive", true);
+      console.log("drive callback failed:", message.slice(0, 160));
+      return json({ ok: false, message }, 400);
+    };
     if (b.error) return bad(`Google reported "${String(b.error).slice(0, 80)}". Nothing was connected.`);
     if (typeof b.code !== "string" || !b.code) return bad("Google did not return an authorisation code. Nothing was connected.");
     const r = await this.tokenCall({ grant_type: "authorization_code", code: b.code, client_id: g.id, client_secret: g.secret, redirect_uri: p.redirectUri });
@@ -447,10 +483,12 @@ export class Workspace extends DurableObject<Env> {
       await revoke(access);
       return bad("Google did not grant ongoing access. Try connecting again.");
     }
-    this.s.drive = { refresh: await lock(this.env.SCHOLIUM_SECRET, j.refresh_token), email: info.email, rootId: this.s.drive.rootId };
+    const done = "Scholium can now save reports into a Scholium folder in your Google Drive. It can only see files it created itself. You can close this tab.";
+    this.s.drive = { refresh: await lock(this.env.SCHOLIUM_SECRET, j.refresh_token), email: info.email, rootId: this.s.drive.rootId, links: this.driveLinks() };
+    settle(this.driveLinks(), nonce, true, done, Date.now());
     this.mem = { token: access, exp: Date.now() + (Number(j.expires_in) || 3000) * 1000 };
     this.save("drive", true);
-    return json({ ok: true, message: "Scholium can now save reports into a Scholium folder in your Google Drive. It can only see files it created itself. You can close this tab." });
+    return json({ ok: true, message: done });
   }
 
   private async driveDisconnect(): Promise<Response> {
