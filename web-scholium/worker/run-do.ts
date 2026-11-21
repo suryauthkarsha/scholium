@@ -4,6 +4,7 @@ import { DurableObject } from "cloudflare:workers";
 import type { CheckpointExport } from "../src/engine/background";
 import { Engine, type ActionResult } from "../src/engine/engine";
 import { createGateway } from "../src/engine/providers";
+import { modelAccount } from "../src/shared/modelAccount";
 import { createServices, type Services } from "../src/engine/services";
 import type { ActiveMethod } from "../src/engine/strategy";
 import { errText, fmtUsd } from "../src/engine/util";
@@ -61,8 +62,8 @@ export class ResearchRun extends DurableObject<Env> {
     // Every free-tier side effect asks the workspace first, which counts it against a hard daily or monthly cap.
     const take = async (kind: "exa" | "email" | "drive"): Promise<boolean> => (await this.ask<{ ok?: boolean }>("POST", "/internal/take", { kind }))?.ok === true;
     const base = createServices({
-      llm: createGateway({ secret: env.EXPO_PUBLIC_RORK_TOOLKIT_SECRET_KEY }),
-      toolkitSecret: env.EXPO_PUBLIC_RORK_TOOLKIT_SECRET_KEY,
+      llm: createGateway({ secret: modelAccount(env).secret }),
+      toolkitSecret: modelAccount(env).secret,
       settings: async () => (await this.ask<{ exaKey?: string; leanUrl?: string }>("GET", "/internal/secrets")) ?? {},
       driveToken: async () => (await this.ask<{ token?: string; error?: string }>("POST", "/internal/drive-token")) ?? { error: "The workspace could not be reached." },
       driveRoot: {

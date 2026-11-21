@@ -276,7 +276,14 @@ function Checks({ d, refresh }: { d: WorkspaceOverview; refresh: () => void }) {
         {at ? <span className="text-muted-foreground">Last run {timeAgo(at)}</span> : <span className="text-muted-foreground">Not run yet</span>}
       </div>
       <fieldset className="space-y-2">
-        <legend className="text-muted-foreground">Also call these models once. Each is a real call at full reasoning effort and counts against the ceiling.</legend>
+        <legend className="text-muted-foreground">
+          Also call these models once. Each is a real call at full reasoning effort and counts against the ceiling.{" "}
+          {d.settings.modelAccount === "other"
+            ? "Model calls are going to another Rork account (MODEL_ACCOUNT_KEY is set)."
+            : d.settings.modelAccount === "project"
+              ? "Model calls are going to this project's own Rork account."
+              : ""}
+        </legend>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           {MODEL_KEYS.map((k) => (
             <label key={k} className="flex items-center gap-2">

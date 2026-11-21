@@ -638,6 +638,8 @@ export interface RunSummary {
 }
 
 export interface PublicSettings {
+  /** Which Rork account serves the model calls: this project's own, or another one set with MODEL_ACCOUNT_KEY. The key itself is never sent. */
+  modelAccount?: "project" | "other";
   exaKeySet: boolean;
   exaKeyHint?: string;
   /** The user has confirmed their Exa plan is free and cannot bill them. Exa is never called without this. */

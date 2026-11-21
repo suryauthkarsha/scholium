@@ -18,11 +18,12 @@ import Setup from "@/components/run/Setup";
 import { Page } from "@/components/Shell";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { goalProgress } from "@/engine/progress";
 import { fmtDuration } from "@/engine/util";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { api, errorText, type RunAction } from "@/lib/api";
 import { useRun } from "@/lib/runStore";
-import { PHASE_NAMES, SUBAGENT_HARD_CAP } from "@/shared/types";
+import { LABEL_NAMES, PHASE_NAMES, SUBAGENT_HARD_CAP } from "@/shared/types";
 
 const TABS = [
   { id: "research", label: "Research" },
@@ -45,6 +46,50 @@ function Gauge({ label, value, limit, n, max, mark, tone, title }: { label: stri
         <span className="text-muted-foreground"> / {limit}</span>
       </dd>
       <Meter value={n} max={max} mark={mark} tone={tone} />
+    </div>
+  );
+}
+
+/** How far the best recorded answer is toward the goal. Counted from the ledger; never an estimate of time left. */
+function GoalBar() {
+  const { run, data } = useRunCtx();
+  const p = useMemo(() => goalProgress(run, data), [run, data]);
+  const total = p.steps.length;
+  const next = p.steps[p.done];
+  const state = p.reached ? "Goal reached" : p.done === 0 ? "No standing answer yet" : `Step ${p.done} of ${total}`;
+  const first = p.missing[0];
+  return (
+    <div className="mt-3">
+      <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
+        <span className="eyebrow">Progress toward the goal</span>
+        <span className={`tabular font-medium ${p.reached ? "text-ok" : ""}`}>{state}</span>
+        {p.claimId && p.label && (
+          <span className="min-w-0 text-muted-foreground">
+            <Ref id={p.claimId} /> stands as “{LABEL_NAMES[p.label]}”
+          </span>
+        )}
+        <span
+          className="ml-auto hidden text-xs text-muted-foreground sm:inline"
+          title="Each step is a level of evidence the best answer to the goal has reached in the ledger, up to the standard this project requires, plus the final confirmation. It is a count of recorded facts, not a forecast of time or cost, and it goes down if an answer is refuted."
+        >
+          counted from the ledger, not a forecast
+        </span>
+      </div>
+      <div className="flex gap-1" role="progressbar" aria-label="Progress toward the goal" aria-valuemin={0} aria-valuemax={total} aria-valuenow={p.done} aria-valuetext={`${state}${next ? `. Next: ${next}` : ""}`}>
+        {p.steps.map((name, i) => (
+          <div key={name} className="min-w-0 flex-1" title={`${name}: ${i < p.done ? "done" : i === p.done ? "next" : "not yet"}`}>
+            <div className={`h-1.5 rounded-full transition-colors duration-500 ${i < p.done ? (p.reached ? "bg-ok" : "bg-rubric") : "bg-secondary"}`} />
+            <div className={`mt-1 hidden truncate text-[0.68rem] leading-tight md:block ${i < p.done ? "text-foreground/80" : i === p.done ? "text-foreground" : "text-muted-foreground/70"}`}>{name}</div>
+          </div>
+        ))}
+      </div>
+      {!p.reached && (
+        <p className="mt-1 truncate text-xs text-muted-foreground" title={p.missing.join("\n")}>
+          {next && <span className="md:hidden">Next: {next}. </span>}
+          {first && <>Still missing: {first}</>}
+          {p.missing.length > 1 && <> (+{p.missing.length - 1} more)</>}
+        </p>
+      )}
     </div>
   );
 }
@@ -156,6 +201,8 @@ function Head({ onSetup }: { onSetup: () => void }) {
           </button>
         </div>
       </div>
+
+      {s !== "draft" && <GoalBar />}
 
       <dl className="mt-3 grid grid-cols-2 gap-x-5 gap-y-2.5 sm:grid-cols-4">
         <Gauge

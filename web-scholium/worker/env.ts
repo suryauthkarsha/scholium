@@ -9,6 +9,8 @@ export interface Env {
   SCHOLIUM_SECRET: string;
   /** Rork AI Cloud credential. Server-side only: it is never sent to the browser or to a sandbox. */
   EXPO_PUBLIC_RORK_TOOLKIT_SECRET_KEY: string;
+  /** Optional. A Rork AI key from another Rork account; when set, every model call goes there instead. See src/shared/modelAccount.ts. */
+  MODEL_ACCOUNT_KEY?: string;
   ALERT_EMAIL_TO?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM?: string;

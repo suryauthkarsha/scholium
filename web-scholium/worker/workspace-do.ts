@@ -2,6 +2,7 @@
 // integration checks and the Google Drive connection. One per owner; reachable only from the router and runs.
 import { DurableObject } from "cloudflare:workers";
 import { createGateway } from "../src/engine/providers";
+import { modelAccount } from "../src/shared/modelAccount";
 import { createServices, type Services } from "../src/engine/services";
 import { b64decode, b64encode, clip, errText, fmtUsd, oneLine } from "../src/engine/util";
 import * as B from "../src/shared/budget";
@@ -162,8 +163,8 @@ export class Workspace extends DurableObject<Env> {
   private services(): Services {
     const env = this.env;
     return createServices({
-      llm: createGateway({ secret: env.EXPO_PUBLIC_RORK_TOOLKIT_SECRET_KEY }),
-      toolkitSecret: env.EXPO_PUBLIC_RORK_TOOLKIT_SECRET_KEY,
+      llm: createGateway({ secret: modelAccount(env).secret }),
+      toolkitSecret: modelAccount(env).secret,
       settings: () => this.secrets(),
       driveToken: () => this.driveToken(),
       driveRoot: {
@@ -186,6 +187,7 @@ export class Workspace extends DurableObject<Env> {
     const d = this.s.drive;
     const env = this.env;
     return {
+      modelAccount: modelAccount(env).source,
       exaKeySet: !!s.exaKey,
       exaKeyHint: s.exaHint,
       exaFreeConfirmed: s.exaFreeConfirmed,
