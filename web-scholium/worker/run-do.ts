@@ -72,6 +72,7 @@ export class ResearchRun extends DurableObject<Env> {
         },
       },
       resendKey: env.RESEND_API_KEY,
+      stackExchangeKey: env.STACKEXCHANGE_KEY,
       emailTo: env.ALERT_EMAIL_TO,
       emailFrom: env.RESEND_FROM,
       take,

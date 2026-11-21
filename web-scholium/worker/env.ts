@@ -12,6 +12,8 @@ export interface Env {
   ALERT_EMAIL_TO?: string;
   RESEND_API_KEY?: string;
   RESEND_FROM?: string;
+  /** Optional free Stack Exchange app key; raises the daily request allowance. */
+  STACKEXCHANGE_KEY?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   RORK_AUTH_SECRET_KEY?: string;

@@ -100,6 +100,8 @@ export interface RealServicesConfig {
   driveToken(): Promise<{ token?: string; error?: string }>;
   driveRoot: { get(): Promise<string | undefined>; set(id: string): Promise<void> };
   resendKey?: string;
+  /** Optional free Stack Exchange app key: raises the shared daily allowance from 300 to 10,000 requests. */
+  stackExchangeKey?: string;
   emailTo?: string;
   emailFrom?: string;
   /** Takes one unit of a capped allowance. False means the cap is used up and the call must not be made. */
@@ -257,6 +259,43 @@ export function parseCrossref(j: unknown): Paper[] {
   return out;
 }
 
+/** Reads one entry in the OEIS internal line format (`%S A000045 0,1,1,2,…`), as kept in the official oeisdata mirror. */
+export function parseOeisSeq(text: string): OeisEntry | undefined {
+  const by: Record<string, string[]> = {};
+  let id = "";
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^%([A-Za-z]) (A\d{6})(?: (.*))?$/.exec(line);
+    if (!m) continue;
+    id ||= m[2];
+    (by[m[1]] ??= []).push((m[3] ?? "").trim());
+  }
+  if (!id || !by.N?.length) return undefined;
+  return {
+    id,
+    name: by.N[0],
+    data: [...(by.S ?? []), ...(by.T ?? []), ...(by.U ?? [])].join("").replace(/,$/, ""),
+    comments: (by.C ?? []).slice(0, 8),
+    formulas: (by.F ?? []).slice(0, 8),
+    references: (by.D ?? []).slice(0, 6),
+    url: `https://oeis.org/${id}`,
+  };
+}
+
+/** The A-numbers named in a query, normalised to six digits, at most four. */
+export function oeisIds(query: string): string[] {
+  const ids = [...query.matchAll(/\bA(\d{1,6})\b/gi)].map((m) => `A${m[1].padStart(6, "0")}`);
+  return [...new Set(ids)].slice(0, 4);
+}
+
+/** Seconds Stack Exchange asked us to wait, read from its throttle message; 0 when it is not a throttle reply. */
+export function throttleSeconds(message: string): number {
+  const m = /more requests available in (\d+) seconds/i.exec(message);
+  return m ? Number(m[1]) : 0;
+}
+
+// Remembered per server instance, so a throttled address is not hammered (which only lengthens the block).
+let seBlockedUntil = 0;
+
 export function parseOeis(j: unknown): OeisEntry[] {
   const list = Array.isArray(j) ? j : arr(rec(j).results);
   return (list as Rec[]).slice(0, 8).map((r) => {
@@ -361,7 +400,18 @@ export function createServices(cfg: RealServicesConfig): Services {
   }
 
   async function stackExchange(site: string, query: string, n: number, signal?: AbortSignal): Promise<WebResult[]> {
-    const j = rec(await getJson(`https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=relevance&q=${encodeURIComponent(query)}&site=${site}&pagesize=${n}`, { headers: UA, signal }, site));
+    const wait = Math.ceil((seBlockedUntil - Date.now()) / 1000);
+    if (wait > 0) throw new Error(`Stack Exchange is throttling this server's address; it said to wait about ${Math.ceil(wait / 60)} more minutes${cfg.stackExchangeKey ? "" : ". A free Stack Exchange app key (STACKEXCHANGE_KEY) raises the allowance"}.`);
+    const key = cfg.stackExchangeKey ? `&key=${encodeURIComponent(cfg.stackExchangeKey)}` : "";
+    let j: Rec;
+    try {
+      j = rec(await getJson(`https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=relevance&q=${encodeURIComponent(query)}&site=${site}&pagesize=${n}${key}`, { headers: UA, signal }, site));
+    } catch (e) {
+      const s = throttleSeconds(errText(e));
+      if (s > 0) seBlockedUntil = Date.now() + s * 1000;
+      throw e;
+    }
+    if (typeof j.backoff === "number" && j.backoff > 0) seBlockedUntil = Date.now() + j.backoff * 1000;
     return (arr(j.items) as Rec[])
       .map((r): WebResult => {
         const at = typeof r.creation_date === "number" ? new Date(r.creation_date * 1000).toISOString().slice(0, 10) : undefined;
@@ -523,7 +573,25 @@ export function createServices(cfg: RealServicesConfig): Services {
   }
 
   async function oeis(query: string, signal?: AbortSignal): Promise<OeisEntry[]> {
-    return parseOeis(await getJson(`https://oeis.org/search?q=${encodeURIComponent(query)}&fmt=json`, { headers: UA, signal }, "OEIS"));
+    try {
+      return parseOeis(await getJson(`https://oeis.org/search?q=${encodeURIComponent(query)}&fmt=json`, { headers: UA, signal }, "OEIS"));
+    } catch (e) {
+      if (signal?.aborted) throw e;
+      // oeis.org sometimes blocks shared server addresses. Entries named by A-number can still be read from the
+      // official OEIS data mirror; a search by terms cannot, so that keeps the real error.
+      const ids = oeisIds(query);
+      if (!ids.length) throw new Error(`${errText(e).slice(0, 200)}. Searching by terms is unavailable while oeis.org refuses this server; looking up a sequence by its A-number still works.`);
+      const found = await Promise.all(ids.map((id) => oeisMirror(id, signal).catch(() => undefined)));
+      const out = found.filter((x): x is OeisEntry => x !== undefined);
+      if (!out.length) throw e;
+      return out;
+    }
+  }
+
+  async function oeisMirror(id: string, signal?: AbortSignal): Promise<OeisEntry | undefined> {
+    const res = await f(`https://raw.githubusercontent.com/oeis/oeisdata/main/seq/${id.slice(0, 4)}/${id}.seq`, { headers: UA, signal });
+    if (!res.ok) return undefined;
+    return parseOeisSeq(await res.text());
   }
 
   async function sage(code: string, signal?: AbortSignal) {
@@ -713,8 +781,14 @@ export function createServices(cfg: RealServicesConfig): Services {
         return done(ok, Object.entries(r.backends).map(([k, v]) => `${k}: ${v}`).join(" · "));
       }
       if (tool === "oeis") {
-        const r = await oeis("1,1,2,3,5,8,13,21");
-        return done(r.length > 0, r.length ? `OEIS answered (${r[0].id})` : "OEIS returned no results");
+        try {
+          const r = await oeis("1,1,2,3,5,8,13,21");
+          return done(r.length > 0, r.length ? `OEIS answered (${r[0].id})` : "OEIS returned no results");
+        } catch (e) {
+          const m = await oeisMirror("A000045").catch(() => undefined);
+          if (!m) throw e;
+          return done(true, `Partly working: sequences can be looked up by A-number through the official OEIS data mirror (${m.id} read), but searching by terms is unavailable because ${errText(e).slice(0, 140)}`);
+        }
       }
       if (tool === "sage") {
         const r = await sage("print(factorial(5))");
