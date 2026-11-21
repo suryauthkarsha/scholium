@@ -1,0 +1,10 @@
+{
+  "apps": [
+    {
+      "name": "Scholium",
+      "path": "web-scholium",
+      "framework": "web"
+    }
+  ],
+  "$schema": "https://rork.com/schema/rork.json"
+}

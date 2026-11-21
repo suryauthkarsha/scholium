@@ -1,2 +1,0 @@
-# scholium
-Created by Rork
