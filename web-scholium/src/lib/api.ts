@@ -154,6 +154,9 @@ export function saveBlob(blob: Blob, filename: string): void {
 export const saveText = (content: string, filename: string, mime: string): void => saveBlob(new Blob([content], { type: `${mime};charset=utf-8` }), filename);
 
 /** The live stream of one run. A fresh single-use ticket is required for every connection. */
-export const socketUrl = (id: string, ticket: string): string => `${window.location.origin.replace(/^http/, "ws")}${r(id)}/ws?ticket=${q(ticket)}`;
+// A host that serves only the pages (Vercel) forwards /api to the backend but cannot carry a live connection,
+// so there the stream goes straight to the backend named by VITE_BACKEND_ORIGIN. The ticket is still what authorises it.
+const BACKEND_ORIGIN = ((import.meta.env.VITE_BACKEND_ORIGIN as string | undefined) ?? "").trim().replace(/\/+$/, "");
+export const socketUrl = (id: string, ticket: string): string => `${(/^https:\/\/[^/]+$/.test(BACKEND_ORIGIN) ? BACKEND_ORIGIN : window.location.origin).replace(/^http/, "ws")}${r(id)}/ws?ticket=${q(ticket)}`;
 
 export const errorText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
